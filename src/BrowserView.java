@@ -2,6 +2,16 @@ import java.awt.Dimension;
 import java.net.URL;
 import java.util.Optional;
 import java.util.ResourceBundle;
+
+import javax.imageio.ImageIO;
+
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
+import org.w3c.dom.events.EventListener;
+import org.w3c.dom.events.EventTarget;
+
+//import BrowserModel.BrowserException;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.concurrent.Worker;
@@ -23,12 +33,6 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.web.WebView;
-import javax.imageio.ImageIO;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.NodeList;
-import org.w3c.dom.events.EventListener;
-import org.w3c.dom.events.EventTarget;
 
 
 /**
@@ -61,6 +65,7 @@ public class BrowserView {
     private Button myBackButton;
     private Button myNextButton;
     private Button myHomeButton;
+    private Button myFavoritesButton;
     // favorites
     private ComboBox<String> myFavorites;
     // get strings from resource file
@@ -92,14 +97,20 @@ public class BrowserView {
      */
     public void showPage (String url) {
         URL valid = myModel.go(url);
-        if (url != null) {
+        try {
             update(valid);
         }
-        else {
-            showError("Could not load " + url);
+        catch (BrowserException e) {
+        	showError(String.format("Could not load %s check your spelling", url));
         }
     }
 
+    public class BrowserException extends RuntimeException {
+    	public BrowserException(String message) {
+    		super(message);
+    	}
+    }
+    
     /**
      * Returns scene for this view so it can be added to stage.
      */
@@ -169,6 +180,7 @@ public class BrowserView {
         myBackButton.setDisable(! myModel.hasPrevious());
         myNextButton.setDisable(! myModel.hasNext());
         myHomeButton.setDisable(myModel.getHome() == null);
+        myFavorites.setDisable(false);
     }
 
     // convenience method to create HTML page display
@@ -225,6 +237,10 @@ public class BrowserView {
             myModel.setHome();
             enableButtons();
         }));
+        myFavoritesButton = makeButton("AddFavoriteCommand", event -> addFavorite());
+        result.getChildren().add(myFavoritesButton);
+        myFavorites = makeComboBox("FavoriteFirstItem", event -> showFavorite(myFavorites.getValue()));
+        result.getChildren().add(myFavorites);
         return result;
     }
 
@@ -242,6 +258,25 @@ public class BrowserView {
         } else {
             result.setText(label);
         }
+        result.setOnAction(handler);
+        return result;
+    }
+    
+    // makes a comboBox
+    private ComboBox<String> makeComboBox (String property, EventHandler<ActionEvent> handler) {
+        // represent all supported image suffixes
+        final String IMAGEFILE_SUFFIXES = 
+            String.format(".*\\.(%s)", String.join("|", ImageIO.getReaderFileSuffixes()));
+
+        ComboBox<String> result = new ComboBox<String>();
+        String label = myResources.getString(property);
+        /*if (label.matches(IMAGEFILE_SUFFIXES)) {
+            result.setGraphic(new ImageView(
+                new Image(getClass().getResourceAsStream(DEFAULT_RESOURCE_PACKAGE + label))));
+        } else {*/
+        //result.setAccessibleText(label);
+        result.setPromptText(label);
+        //}
         result.setOnAction(handler);
         return result;
     }
